@@ -54,11 +54,10 @@ module Recommendations
         'Superman Returns' => 4.0
       }
     }
-
   end
 
   def self.sim_distance(prefs, person1, person2)
-    si = prefs[person1].keys && prefs[person2].keys
+    si = prefs[person1].keys & prefs[person2].keys
     return 0 if si.empty?
 
     sum_of_squares = si.inject(0) do |sum, key|
@@ -69,7 +68,7 @@ module Recommendations
 
   # p1 と p2 のピアソン係数を返す
   def self.sim_pearson(prefs, p1, p2)
-    si = prefs[p1].keys && prefs[p2].keys
+    si = prefs[p1].keys & prefs[p2].keys
 
     sum1 = si.inject(0.0) {|sum, item| sum += prefs[p1][item] }
     sum2 = si.inject(0.0) {|sum, item| sum += prefs[p2][item] }
@@ -82,8 +81,31 @@ module Recommendations
     n = si.size()
     num = pSum - ((sum1 * sum2) / n)
     den = Math.sqrt((sum1Sq-(sum1**2)/n) * (sum2Sq - ((sum2**2)/n)))
+
     return 0 if den == 0
     num / den
+  end
+
+  def self.top_matches(prefs, person, n = 5, &similarity)
+    scores = (prefs.keys - [person]).map do |other|
+      [similarity[prefs, person, other], other]
+    end.sort.reverse[0, n]
+  end
+
+  def self.get_recommendations(prefs, person, &similarity)
+    totals = Hash.new(0.0)
+    simSums = Hash.new(0.0)
+    (prefs.keys - [person]).map do |other|
+      sim = similarity[prefs, person, other]
+      next if sim <= 0
+      (prefs[other].keys - prefs[person].keys).map do |item|
+        totals[item] += prefs[other][item] * sim
+        simSums[item] += sim
+      end
+    end
+    totals.map do |item, total|
+      [(total/simSums[item]), item]
+    end.sort.reverse
   end
 end
 
